@@ -4,16 +4,12 @@ import sched, time, json, requests, os, sys
 import mqtt
 import config
 
-mqtt_conn = None
 s = sched.scheduler(time.time, time.sleep)
 pool = ThreadPool(config.sensors.__len__())
 data = {'sensors' : {} }
 
 def main():
 	print(time.strftime("%H:%M") + " SensorTagSender started.")
-	if config.mqtt_enabled:
-		global mqtt_conn
-		mqtt_conn = mqtt.connect_mqtt(config.mqtt_ipaddress, config.mqtt_port, config.mqtt_username, config.mqtt_password)
 	results = pool.map(start, config.sensors)
 
 def start(address):
@@ -26,6 +22,8 @@ def start(address):
 	    
 def publish_temp_readings(sc):
 	clear_screen()
+	if config.mqtt_enabled:
+		mqtt_conn = mqtt.connect_mqtt(config.mqtt_ipaddress, config.mqtt_port, config.mqtt_username, config.mqtt_password)
 	readings = []
 	for sensorId in data['sensors']:
 		has_data = False
@@ -49,6 +47,9 @@ def publish_temp_readings(sc):
 			readings.append(reading)
 			if config.mqtt_enabled:
 				mqtt.publish_temp(mqtt_conn, reading['sensorId'], reading['ambientTemperature'])
+	
+	if config.mqtt_enabled:
+		mqtt.disconnect_mqtt(mqtt_conn)
 
 	if len(readings) > 0 and config.http_enabled:
 		send_to_server(list_to_json(readings))
